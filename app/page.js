@@ -55,44 +55,38 @@ export default function Home() {
         throw new Error(errorMsg);
       }
       const data = await res.json();
-      // setLoading(false); // Moved loading=false after state updates
       return data;
     } catch (err) {
-      console.error("Fetch Error:", err); // Log the actual error
+      console.error("Fetch Error:", err);
       setError(err);
-      setPhotos([]); // Clear photos on fetch error
-      setDisplayType("photos"); // Transition to photos display type even on error
-      setLoading(false); // Set loading to false here on error
-      return null; // Return null on error
-    } finally {
-        // Ensure loading is set to false in successful case too
-        // Note: Setting loading=false *after* setPhotos/setDisplayType in successful paths is slightly better practice
+      setPhotos([]);
+      setDisplayType("photos");
+      setLoading(false);
+      return null;
     }
   };
 
   // Get Random Photo(s) - Unsplash API allows count parameter
-  const fetchRandomPhotos = async (count = 10) => { // Changed default count to 10
+  const fetchRandomPhotos = async (count = 10) => {
     const data = await fetchData(`https://api.unsplash.com/photos/random?count=${count}`);
     if (data) {
-      // The random endpoint returns an array if count > 1, a single object if count = 1
       setPhotos(Array.isArray(data) ? data : [data]);
       setDisplayType("photos");
     } else {
-       setPhotos([]); // Ensure photos are cleared on error (redundant with fetchData catch, but safe)
-       setDisplayType("photos"); // Transition to photos display type even on error
+       setPhotos([]);
+       setDisplayType("photos");
     }
-     setLoading(false); // Set loading false after state updates in success
+     setLoading(false);
   };
 
   // Search Photos by Keyword
   const searchPhotos = async () => {
     if (!searchQuery.trim()) {
       setError(new Error("Please enter a search query."));
-      setPhotos([]); // Clear previous photos
-      setDisplayType("photos"); // Show empty photos area with error
+      setPhotos([]);
+      setDisplayType("photos");
       return;
     }
-    // Unsplash search endpoint is different, results are in data.results
     const data = await fetchData(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}`);
     if (data && data.results) {
       setPhotos(data.results);
@@ -101,15 +95,14 @@ export default function Home() {
          setError(new Error(`No photos found for "${searchQuery}".`));
       }
     } else if (data && data.total === 0) {
-       // API might return 200 with total: 0 and empty results array
        setPhotos([]);
        setError(new Error(`No photos found for "${searchQuery}".`));
        setDisplayType("photos");
     } else {
-        setPhotos([]); // Clear photos on error (redundant with fetchData catch)
-        setDisplayType("photos"); // Transition to photos display type even on error
+        setPhotos([]);
+        setDisplayType("photos");
     }
-    setLoading(false); // Set loading false after state updates in success/no results
+    setLoading(false);
   };
 
   // Get Photo by ID
@@ -122,13 +115,13 @@ export default function Home() {
     }
     const data = await fetchData(`https://api.unsplash.com/photos/${encodeURIComponent(photoId)}`);
     if (data) {
-      setPhotos([data]); // Set as an array for consistent rendering
+      setPhotos([data]);
       setDisplayType("photos");
     } else {
-       setPhotos([]); // Clear photos on error (redundant with fetchData catch)
-       setDisplayType("photos"); // Transition to photos display type even on error
+       setPhotos([]);
+       setDisplayType("photos");
     }
-    setLoading(false); // Set loading false after state updates in success
+    setLoading(false);
   };
 
   // --- Like Photo Function ---
@@ -178,15 +171,12 @@ export default function Home() {
     setPhotoId(event.target.value);
   };
 
-
   // --- Initial Fetch on Mount ---
   useEffect(() => {
-    // Only fetch initially if no data is loaded yet and not already loading/errored
-    // displayType === 'initial' is key here for the first load
     if (displayType === 'initial' && photos.length === 0 && !loading && !error) {
-       fetchRandomPhotos(10); // Fetch 10 random photos on mount
+       fetchRandomPhotos(10);
     }
-  }, [ACCESS_KEY, displayType, photos.length, loading, error]); // Include dependencies
+  }, [ACCESS_KEY, displayType, photos.length, loading, error]);
 
   // Fetch liked photos on mount
   useEffect(() => {
@@ -211,41 +201,60 @@ export default function Home() {
 
   // --- Render Logic ---
 
-  // Helper component or inline JSX to render a single photo item
-  const renderPhotoItem = (photo) => (
-    <div key={photo.id} className="flex flex-col items-center p-2 bg-white/10 backdrop-blur-md rounded-lg shadow-md m-2 w-full sm:w-auto max-w-xs border border-white/20">
-      <div className="relative w-full">
+  // Helper component to render a single photo item
+  const renderPhotoItem = (photo, index) => (
+    <div 
+      key={photo.id} 
+      className="group photo-card relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 ease-out transform hover:scale-105 hover:-translate-y-2 w-full sm:w-80 max-w-sm"
+      style={{
+        animationDelay: `${index * 100}ms`,
+        animation: 'fadeInUp 0.8s ease-out forwards'
+      }}
+    >
+      <div className="relative overflow-hidden rounded-t-2xl">
         <button
           onClick={() => handleLike(photo)}
-          className="absolute top-2 left-2 p-2 rounded-full bg-white/20 backdrop-blur-md 
-            hover:bg-white/40 transition-all duration-300 ease-out
-            group"
+          className="absolute top-3 left-3 z-10 p-3 rounded-full bg-white/20 backdrop-blur-md 
+            hover:bg-white/40 transition-all duration-300 ease-out transform hover:scale-110
+            group/heart shadow-lg"
         >
           {likedPhotos[photo.id] ? (
-            <FaHeart className="text-red-500 text-xl group-hover:scale-110 transition-transform" />
+            <FaHeart className="text-red-500 text-lg group-hover/heart:animate-pulse drop-shadow-sm" />
           ) : (
-            <FaRegHeart className="text-white text-xl group-hover:scale-110 transition-transform" />
+            <FaRegHeart className="text-white text-lg group-hover/heart:text-red-300 transition-colors duration-300 drop-shadow-sm" />
           )}
         </button>
-        <a href={photo.links.html} target="_blank" rel="noopener noreferrer">
-          <img
-            src={photo.urls.small}
-            alt={photo.alt_description || "Unsplash Photo"}
-            className="rounded-t-lg object-cover w-full h-48"
-          />
+        
+        <a href={photo.links.html} target="_blank" rel="noopener noreferrer" className="block">
+          <div className="relative overflow-hidden">
+            <img
+              src={photo.urls.small}
+              alt={photo.alt_description || "Unsplash Photo"}
+              className="w-full h-64 object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          </div>
         </a>
       </div>
-      <div className="mt-2 text-gray-700 text-center text-sm">
-        Photo by{" "}
-        <a
-          href={photo.user.links.html}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
-        >
-          {photo.user.name}
-        </a>
-        {photo.description && <p className="text-xs mt-1 italic line-clamp-2">{photo.description}</p>}
+      
+      <div className="p-4 space-y-2">
+        <div className="text-gray-700 text-center">
+          <span className="text-sm">Photo by </span>
+          <a
+            href={photo.user.links.html}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-blue-600 hover:text-purple-600 transition-colors duration-300 hover:underline"
+          >
+            {photo.user.name}
+          </a>
+        </div>
+        {photo.description && (
+          <p className="text-xs text-gray-600 text-center italic line-clamp-2 leading-relaxed">
+            {photo.description}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -253,153 +262,247 @@ export default function Home() {
   // Determine if the spinner should be shown
   const showSpinner = loading || (displayType === 'initial' && !loading && !error);
 
-
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-r from-cyan-200 to-fuchsia-200 p-4">
-      {/* Auth Controls */}
-      <div className="absolute top-4 right-4">
-        {user ? (
-          <div className="flex items-center gap-4">
-            <img 
-              src={user.photoURL} 
-              alt={user.displayName} 
-              className="w-8 h-8 rounded-full"
-            />
-            <span className="text-gray-700">{user.displayName}</span>
-            <button
-              onClick={logout}
-              className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md border border-white/20 shadow-sm hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto"
-            >
-              Logout
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={login}
-            className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-200"
-          >
-            Login with Google
-          </button>
-        )}
-      </div>
+    <>
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+        
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+          }
+        }
+        
+        @keyframes gradient-shift {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+        
+        .photo-card {
+          opacity: 0;
+        }
+        
+        .animated-bg {
+          background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
+          background-size: 400% 400%;
+          animation: gradient-shift 15s ease infinite;
+        }
+        
+        .glass-button {
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .glass-button:hover {
+          backdrop-filter: blur(16px);
+          border-color: rgba(255, 255, 255, 0.3);
+          transform: translateY(-2px);
+        }
+        
+        .spinner {
+          background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
+          background-size: 400% 400%;
+          animation: gradient-shift 2s ease infinite, pulse-glow 2s ease-in-out infinite;
+        }
+      `}</style>
       
-      {/* Controls Area */}
-      <div className="flex flex-col md:flex-row items-center justify-center space-y-3 md:space-y-0 md:space-x-4 mb-6 w-full max-w-4xl mx-auto">
-
-        {/* Liked Photos Button */}
-        <Link
-          href="/like"
-          className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md 
-            border border-white/20 shadow-sm hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 
-            transition-all duration-300 ease-out w-full md:w-auto flex items-center justify-center gap-2"
-        >
-          <FaHeart className="text-red-500" />
-          Liked Photos
-        </Link>
-
-        {/* Random Photo Buttons */}
-        <button
-          onClick={() => fetchRandomPhotos(1)} // Fetch 1 random photo
-          className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md border border-white/20 shadow-sm hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto"
-          disabled={loading}
-        >
-          Get 1 Random Photo
-        </button>
-
-         <button
-          onClick={() => fetchRandomPhotos(10)} // Fetch 10 random photos
-          className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md border border-white/20 shadow-sm hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto"
-          disabled={loading}
-        >
-          Get 10 Random Photos
-        </button>
-
-
-        {/* Search Photos Input and Button */}
-        <div className="flex w-full md:w-auto md:flex-grow max-w-sm space-x-2">
-            <input
-                type="text"
-                placeholder="Search photos by keyword..."
-                value={searchQuery}
-                onChange={handleSearchInputChange}
-                className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                disabled={loading}
-            />
+      <div className="flex flex-col min-h-screen animated-bg p-4 relative overflow-hidden">
+        {/* Floating background elements */}
+        <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-48 h-48 bg-purple-300/20 rounded-full blur-2xl" style={{animation: 'float 6s ease-in-out infinite'}} />
+        <div className="absolute top-1/3 right-10 w-20 h-20 bg-pink-300/30 rounded-full blur-lg" style={{animation: 'float 4s ease-in-out infinite reverse'}} />
+        
+        {/* Auth Controls */}
+        <div className="absolute top-6 right-6 z-20">
+          {user ? (
+            <div className="flex items-center gap-4 glass-button bg-white/10 backdrop-blur-md px-4 py-2 rounded-full shadow-lg">
+              <img 
+                src={user.photoURL} 
+                alt={user.displayName} 
+                className="w-8 h-8 rounded-full border-2 border-white/30"
+              />
+              <span className="text-white font-medium hidden md:block">{user.displayName}</span>
+              <button
+                onClick={logout}
+                className="glass-button px-4 py-2 bg-red-500/80 hover:bg-red-600/90 text-white font-semibold rounded-full transition-all duration-300 ease-out hover:scale-105"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
             <button
-                onClick={searchPhotos}
-                className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md border border-white/20 shadow-sm hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto"
-                 disabled={loading}
+              onClick={login}
+              className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg"
             >
-                Search Keyword
+              Login with Google
             </button>
+          )}
         </div>
 
-        {/* Get Photo by ID Input and Button */}
-         <div className="flex w-full md:w-auto md:flex-grow max-w-sm space-x-2">
-             <input
-                 type="text"
-                 placeholder="Enter Photo ID..."
-                 value={photoId}
-                 onChange={handlePhotoIdInputChange}
-                 className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                 disabled={loading}
-             />
-             <button
-                 onClick={fetchPhotoById}
-                 className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md border border-white/20 shadow-sm hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto"
-                 disabled={loading}
-             >
-                 Get by ID
-             </button>
-         </div>
+        {/* Upload Button */}
+        <div className="absolute top-6 left-6 z-20">
+          <button
+            onClick={() => {/* Add your upload logic here */}}
+            className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+    Upload Photo
+          </button>
+        </div>
+        
+        {/* Header */}
+        <div className="text-center mb-8 mt-16">
+          <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow-lg mb-4" style={{animation: 'fadeInUp 1s ease-out'}}>
+            Photo Gallery
+          </h1>
+          <p className="text-lg md:text-xl text-white/80 drop-shadow" style={{animation: 'fadeInUp 1s ease-out 0.2s both'}}>
+            Discover beautiful photography from around the world
+          </p>
+        </div>
+        
+        {/* Controls Area */}
+        <div className="flex flex-col md:flex-row items-center justify-center space-y-3 md:space-y-0 md:space-x-4 mb-8 w-full mx-auto" style={{animation: 'fadeInUp 1s ease-out 0.4s both'}}>
 
+          {/* Liked Photos Button */}
+          <Link
+            href="/like"
+            className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto flex items-center justify-center gap-2 hover:shadow-lg"
+          >
+            <FaHeart className="text-red-400" />
+            Liked Photos
+          </Link>
 
-      </div> {/* End Controls Row */}
+          {/* Random Photo Buttons */}
+          <button
+            onClick={() => fetchRandomPhotos(1)}
+            className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
+            disabled={loading}
+          >
+            Get 1 Random Photo
+          </button>
 
+          <button
+            onClick={() => fetchRandomPhotos(10)}
+            className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
+            disabled={loading}
+          >
+            Get 10 Random Photos
+          </button>
 
-      {/* Loading, Error, and Results Area */}
-      <div className="flex-grow w-full max-w-6xl mx-auto overflow-y-auto mt-4 flex justify-center items-center min-h-[50vh]"> {/* Added flex, centering, and min-h */}
-
-        {/* Spinner */}
-        {showSpinner && (
-           <div
-             className="p-3 custom-spinner-animation drop-shadow-2xl bg-gradient-to-bl from-pink-400 via-purple-400 to-indigo-600 h-30 w-30 aspect-square rounded-full"
-           >
-             <div
-               className="rounded-full h-full w-full bg-slate-100 dark:bg-zinc-900 background-blur-md"
-             ></div>
-           </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="text-center text-red-600 text-xl mt-4 mb-4">
-            Error: {error.message}
-            {/* Clear button */}
-            <button onClick={() => setError(null)} className="ml-3 text-sm text-blue-700 hover:underline">
-                Dismiss
+          {/* Search Photos Input and Button */}
+          <div className="flex w-full md:w-auto md:flex-grow max-w-sm space-x-2">
+            <input
+              type="text"
+              placeholder="Search photos by keyword..."
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              className="flex-grow px-4 py-3 border-none rounded-full bg-white/20 backdrop-blur-md placeholder-white/70 text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-300"
+              disabled={loading}
+            />
+            <button
+              onClick={searchPhotos}
+              className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
+              disabled={loading}
+            >
+              Search
             </button>
           </div>
-        )}
 
-        {/* Display Photos or "No photos" message */}
-        {/* Only show this block if NOT showing the spinner AND displayType is 'photos' */}
-        {!showSpinner && displayType === 'photos' && (
-           photos.length > 0 ? (
-             <div className="flex flex-wrap justify-center w-full"> {/* Flex container for photos, full width */}
-               {photos.map(renderPhotoItem)}
-             </div>
-           ) : (
-              // Only show "No photos" if no error (error is handled above)
-              !error && <div className="text-center text-gray-700 text-xl mt-8">No photos found. Try a different search.</div>
-           )
-        )}
+          {/* Get Photo by ID Input and Button */}
+          <div className="flex w-full md:w-auto md:flex-grow max-w-sm space-x-2">
+            <input
+              type="text"
+              placeholder="Enter Photo ID..."
+              value={photoId}
+              onChange={handlePhotoIdInputChange}
+              className="flex-grow px-4 py-3 border-none rounded-full bg-white/20 backdrop-blur-md placeholder-white/70 text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all duration-300"
+              disabled={loading}
+            />
+            <button
+              onClick={fetchPhotoById}
+              className="glass-button bg-white/10 backdrop-blur-md text-white font-semibold rounded-full px-6 py-3 hover:bg-white/20 transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
+              disabled={loading}
+            >
+              Get
+            </button>
+          </div>
+        </div>
 
-        {/* The original message is now replaced by the spinner */}
-        {/* Original: (!loading && !error && displayType === 'initial') && (...) */}
+        {/* Loading, Error, and Results Area */}
+        <div className="flex-grow w-full mx-auto overflow-y-auto mt-4 flex justify-center items-center min-h-[50vh]">
 
-      </div> {/* End Results Area */}
+          {/* Enhanced Spinner */}
+          {showSpinner && (
+            <div className="flex flex-col items-center space-y-4">
+              <div className="spinner w-16 h-16 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md"></div>
+              </div>
+              <p className="text-white/80 text-lg font-medium">Loading beautiful photos...</p>
+            </div>
+          )}
 
-    </div> // End Main Container
+          {/* Enhanced Error Display */}
+          {error && (
+            <div className="text-center bg-red-500/20 backdrop-blur-md border border-red-300/30 rounded-2xl p-6 mx-4 max-w-md">
+              <div className="text-red-100 text-lg font-semibold mb-2">Oops! Something went wrong</div>
+              <div className="text-red-200 mb-4">{error.message}</div>
+              <button 
+                onClick={() => setError(null)} 
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-all duration-300 hover:scale-105"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Display Photos */}
+          {!showSpinner && displayType === 'photos' && (
+            photos.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full px-4">
+                {photos.map((photo, index) => renderPhotoItem(photo, index))}
+              </div>
+            ) : (
+              !error && (
+                <div className="text-center text-white/80 text-xl font-medium bg-white/10 backdrop-blur-md rounded-2xl p-8 mx-4">
+                  <div className="text-3xl mb-4">🔍</div>
+                  <div>No photos found. Try a different search.</div>
+                </div>
+              )
+            )
+          )}
+        </div>
+      </div>
+    </>
   );
 }

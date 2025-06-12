@@ -28,15 +28,6 @@ export default function RootLayout({ children }) {
       >
         <AuthProvider>
           {children}
-          <Link 
-            href="/like" 
-            className="px-4 py-2 bg-white/10 backdrop-blur-md text-gray-800 font-semibold rounded-md 
-              border border-white/20 shadow-sm
-              hover:shadow-lg hover:shadow-white/20 hover:bg-white/20 
-              transition-all duration-300 ease-out"
-          >
-            Liked Photos
-          </Link>
         </AuthProvider>
       </body>
     </html>
