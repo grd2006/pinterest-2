@@ -9,8 +9,8 @@ import { addDoc, collection, deleteDoc, getDocs, doc } from 'firebase/firestore'
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import Link from 'next/link';
 
-// The component signature is the same
-export default function PhotoGallery({ initialPhotos, initialError }) {
+// Convert the object export to a proper React component
+export default function Page({ initialPhotos, initialError }) {
   const ACCESS_KEY = process.env.NEXT_PUBLIC_ACCESS_KEY;
   // ... (all other state and hooks are the same) ...
   const { user, login, logout } = useAuth();
