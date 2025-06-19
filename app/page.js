@@ -10,12 +10,11 @@ import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import Link from 'next/link';
 
 // Convert the object export to a proper React component
-export default function Page({ initialPhotos, initialError }) {
+export default function Page() {
   const ACCESS_KEY = process.env.NEXT_PUBLIC_ACCESS_KEY;
-  // ... (all other state and hooks are the same) ...
   const { user, login, logout } = useAuth();
-  const [photos, setPhotos] = useState(initialPhotos || []);
-  const [error, setError] = useState(initialError ? new Error(initialError) : null);
+  const [photos, setPhotos] = useState([]);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [photoId, setPhotoId] = useState("");
   const [loading, setLoading] = useState(false);
