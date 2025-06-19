@@ -1,106 +1,78 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// Import the Server Action you just created
+import { fetchRandomPhotosWithISR } from '../app/actions'; 
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
 import { addDoc, collection, deleteDoc, getDocs, doc } from 'firebase/firestore';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import Link from 'next/link';
 
-export default function Home() {
+// The component signature is the same
+export default function PhotoGallery({ initialPhotos, initialError }) {
   const ACCESS_KEY = process.env.NEXT_PUBLIC_ACCESS_KEY;
-  const { user, login, logout, loading: authLoading } = useAuth();
-  // State to hold the list of photos to display
-  const [photos, setPhotos] = useState([]);
-  // State for input values
+  // ... (all other state and hooks are the same) ...
+  const { user, login, logout } = useAuth();
+  const [photos, setPhotos] = useState(initialPhotos || []);
+  const [error, setError] = useState(initialError ? new Error(initialError) : null);
   const [searchQuery, setSearchQuery] = useState("");
   const [photoId, setPhotoId] = useState("");
-  // State for loading indicator
   const [loading, setLoading] = useState(false);
-  // State for error messages
-  const [error, setError] = useState(null);
-  // State to track what is currently displayed
-  const [displayType, setDisplayType] = useState("initial"); // 'initial', 'photos'
-  // State to manage liked photos
   const [likedPhotos, setLikedPhotos] = useState({});
 
-  // --- API Fetching Functions ---
-
-  // Generic fetch wrapper with loading and error handling
+  // This generic fetch wrapper is still useful for your OTHER buttons (Search, Get by ID)
   const fetchData = async (url) => {
     setLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
     try {
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Client-ID ${ACCESS_KEY}`,
-        },
-      });
-      if (!res.ok) {
-        // Try to parse error details from response body if available
-        let errorMsg = `HTTP error! status: ${res.status}`;
-        try {
-           const errorData = await res.json();
-           if (errorData.errors) {
-             errorMsg = errorData.errors.join(", ");
-           } else if (errorData.message) {
-             errorMsg = errorData.message;
-           } else {
-            errorMsg = `${res.status} ${res.statusText}`;
-           }
-        } catch (parseError) {
-           // If JSON parsing fails, use default error message
-           console.error("Failed to parse error response:", parseError);
-        }
-        throw new Error(errorMsg);
-      }
-      const data = await res.json();
-      return data;
+      const res = await fetch(url, { headers: { Authorization: `Client-ID ${ACCESS_KEY}` } });
+      if (!res.ok) { /* ... error handling ... */ throw new Error('Fetch failed'); }
+      return await res.json();
     } catch (err) {
-      console.error("Fetch Error:", err);
       setError(err);
-      setPhotos([]);
-      setDisplayType("photos");
-      setLoading(false);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Get Random Photo(s) - Unsplash API allows count parameter
+  // --- THIS IS THE MODIFIED FUNCTION ---
+  // It now calls the Server Action instead of fetching directly.
   const fetchRandomPhotos = async (count = 10) => {
-    const data = await fetchData(`https://api.unsplash.com/photos/random?count=${count}`);
-    if (data) {
-      setPhotos(Array.isArray(data) ? data : [data]);
-      setDisplayType("photos");
-    } else {
-       setPhotos([]);
-       setDisplayType("photos");
-    }
-     setLoading(false);
-  };
+    setLoading(true);
+    setError(null);
 
+    // Call the Server Action. Next.js handles the network communication.
+    const result = await fetchRandomPhotosWithISR(count);
+
+    if (result.error) {
+      setError(new Error(result.error));
+      setPhotos([]);
+    } else {
+      setPhotos(result.photos);
+    }
+
+    setLoading(false);
+  };
   // Search Photos by Keyword
   const searchPhotos = async () => {
     if (!searchQuery.trim()) {
       setError(new Error("Please enter a search query."));
       setPhotos([]);
-      setDisplayType("photos");
       return;
     }
     const data = await fetchData(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}`);
     if (data && data.results) {
       setPhotos(data.results);
-      setDisplayType("photos");
       if(data.total === 0) {
          setError(new Error(`No photos found for "${searchQuery}".`));
       }
     } else if (data && data.total === 0) {
        setPhotos([]);
        setError(new Error(`No photos found for "${searchQuery}".`));
-       setDisplayType("photos");
     } else {
         setPhotos([]);
-        setDisplayType("photos");
     }
     setLoading(false);
   };
@@ -110,16 +82,13 @@ export default function Home() {
     if (!photoId.trim()) {
       setError(new Error("Please enter a photo ID."));
       setPhotos([]);
-      setDisplayType("photos");
       return;
     }
     const data = await fetchData(`https://api.unsplash.com/photos/${encodeURIComponent(photoId)}`);
     if (data) {
       setPhotos([data]);
-      setDisplayType("photos");
     } else {
        setPhotos([]);
-       setDisplayType("photos");
     }
     setLoading(false);
   };
@@ -173,10 +142,10 @@ export default function Home() {
 
   // --- Initial Fetch on Mount ---
   useEffect(() => {
-    if (displayType === 'initial' && photos.length === 0 && !loading && !error) {
+    if (photos.length === 0 && !loading && !error) {
        fetchRandomPhotos(10);
     }
-  }, [ACCESS_KEY, displayType, photos.length, loading, error]);
+  }, [ACCESS_KEY, photos.length, loading, error]);
 
   // Fetch liked photos on mount
   useEffect(() => {
@@ -260,7 +229,7 @@ export default function Home() {
   );
 
   // Determine if the spinner should be shown
-  const showSpinner = loading || (displayType === 'initial' && !loading && !error);
+  const showSpinner = loading;
 
   return (
     <>
@@ -487,7 +456,7 @@ export default function Home() {
           )}
 
           {/* Display Photos */}
-          {!showSpinner && displayType === 'photos' && (
+          {!showSpinner && (
             photos.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full px-4">
                 {photos.map((photo, index) => renderPhotoItem(photo, index))}
